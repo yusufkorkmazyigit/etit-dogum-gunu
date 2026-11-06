@@ -31,6 +31,11 @@
   .today-banner{margin-top:18px;padding:12px 16px;border-radius:12px;background:var(--accent-soft);
     color:var(--ink);font-size:15px;display:none}
   .today-banner b{color:var(--accent)}
+  .wa-btn{display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:7px 14px;border-radius:999px;
+    background:#25d366;color:#0b2e17;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap;vertical-align:middle}
+  .wa-btn::before{content:"💬"}
+  .wa-btn:hover{background:#1ebe5a}
+  @media (max-width:520px){.wa-btn{display:flex;justify-content:center;margin:10px 0 0}}
   .grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:20px}
   @media (max-width:820px){.grid{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
@@ -266,6 +271,16 @@ function renderToday(){
   b.append("🎉 Bugün doğum günü: ");
   const s=document.createElement("b");s.textContent=list.map(e=>e.name).join(", ");b.appendChild(s);
   b.append(" — kutlamayı unutmayın!");
+  const names=list.map(e=>e.name);
+  const joined=names.length>1?names.slice(0,-1).join(", ")+" ve "+names[names.length-1]:names[0];
+  const msg=names.length>1
+    ? "🎭 Bugün sahnemizin yıldızları "+joined+" doğum günlerini kutluyor!\nİyi ki doğdunuz, nice perdelere! 🎂👏"
+    : "🎭 Bugün sahnemizin yıldızı "+joined+" doğum gününü kutluyor!\nİyi ki doğdun, nice perdelere! 🎂👏";
+  const a=document.createElement("a");
+  a.className="wa-btn";a.target="_blank";a.rel="noopener";
+  a.href="https://wa.me/?text="+encodeURIComponent(msg);
+  a.textContent="WhatsApp'ta kutla";
+  b.appendChild(a);
 }
 
 function renderForm(){
