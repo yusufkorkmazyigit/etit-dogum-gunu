@@ -28,6 +28,7 @@
   .quote-by{font-size:13px;color:var(--muted);margin-bottom:14px}
   .quote-by::before{content:"— "}
   .btn{color:#111 !important}
+  .btn.ghost{color:var(--muted) !important}
   .today-banner{margin-top:18px;padding:12px 16px;border-radius:12px;background:var(--accent-soft);
     color:var(--ink);font-size:15px;display:none}
   .today-banner b{color:var(--accent)}
@@ -81,6 +82,12 @@
   .side{display:flex;flex-direction:column;gap:18px}
   .status{font-size:13px;color:var(--muted)}
   .daylist{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .story-btn{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:7px 14px;border-radius:999px;
+    border:1px solid var(--accent);background:transparent;color:var(--accent);font:inherit;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;vertical-align:middle}
+  .story-btn:hover{background:var(--accent-soft)}
+  @media (max-width:520px){.story-btn{display:flex;justify-content:center;width:100%;margin:8px 0 0}}
+  .month-day{color:var(--accent);font-weight:600;font-size:13px;min-width:28px;display:inline-block}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
   .credit{margin-top:40px;text-align:center;font-size:11px;color:#555;letter-spacing:.02em}
   .credit a{color:#666;text-decoration:none;border-bottom:1px dotted #444}
   .credit a:hover{color:#999}
@@ -134,6 +141,12 @@
           <div class="msg" id="msg"></div>
           <div class="hint">Takvimde bir güne tıklayınca tarih otomatik seçilir. Kaydını aynı tarayıcıdan güncelleyip silebilirsin; tekrar kaydedersen güncellenir.</div>
         </form>
+      </div>
+
+      <div class="card">
+        <h3 id="monthListTitle">Bu ay doğanlar</h3>
+        <ul class="list" id="monthList"></ul>
+        <button class="btn ghost" id="copyMonth" type="button" hidden>📋 Listeyi WhatsApp için kopyala</button>
       </div>
 
       <div class="card">
@@ -218,7 +231,7 @@ function render(){
     b.addEventListener("click",()=>pick(viewM+1,d));
     box.appendChild(b);
   }
-  renderDayList(); renderUpcoming(); renderToday(); renderForm();
+  renderDayList(); renderUpcoming(); renderToday(); renderForm(); renderMonthList();
 }
 
 function pick(m,d){
@@ -281,6 +294,139 @@ function renderToday(){
   a.href="https://wa.me/?text="+encodeURIComponent(msg);
   a.textContent="WhatsApp'ta kutla";
   b.appendChild(a);
+  list.forEach(p=>{
+    const sb=document.createElement("button");sb.type="button";sb.className="story-btn";
+    sb.textContent="📸 Hikâye görseli"+(list.length>1?" · "+p.name.split(" ")[0]:"");
+    sb.onclick=()=>makeStory(p,sb);
+    b.appendChild(sb);
+  });
+  if(myId&&list.some(e=>e.id===myId)&&!confettiFired){confettiFired=true;setTimeout(confetti,400);}
+}
+
+// ---------- Bu ay doğanlar ----------
+function monthLines(m){
+  return byMonth(m).map(p=>p.day+" "+MONTHS[m-1]+" — "+p.name);
+}
+function byMonth(m){return entries.filter(e=>e.month===m).sort((a,b)=>a.day-b.day||a.name.localeCompare(b.name,"tr"));}
+function renderMonthList(){
+  const m=viewM+1, ul=$("monthList"), people=byMonth(m);
+  $("monthListTitle").textContent=MONTHS[m-1]+" doğumluları"+(people.length?" ("+people.length+")":"");
+  ul.innerHTML="";
+  if(!ready){return;}
+  if(!people.length){const li=document.createElement("li");li.className="status";li.textContent="Bu ay kayıtlı doğum günü yok.";ul.appendChild(li);}
+  people.forEach(p=>{
+    const li=document.createElement("li");
+    const left=document.createElement("span");
+    const d=document.createElement("span");d.className="month-day";d.textContent=p.day;
+    left.append(d," "+p.name+(p.id===myId?" (sen)":""));
+    const left2=daysUntil(p.month,p.day);
+    const w=document.createElement("span");w.className="when";w.textContent=left2===0?"bugün 🎉":"";
+    li.append(left,w);ul.appendChild(li);
+  });
+  $("copyMonth").hidden=!people.length;
+}
+$("copyMonth").addEventListener("click",async()=>{
+  const m=viewM+1, people=byMonth(m);
+  const txt="🎭 ETİTSAHNE · "+MONTHS[m-1]+" doğum günleri 🎂\n\n"+people.map(p=>"• "+p.day+" "+MONTHS[m-1]+" — "+p.name).join("\n")+"\n\nŞimdiden iyi ki doğdunuz! 👏";
+  const btn=$("copyMonth");
+  try{await navigator.clipboard.writeText(txt);btn.textContent="✅ Kopyalandı — gruba yapıştırabilirsin";}
+  catch(e){btn.textContent="Kopyalanamadı";}
+  setTimeout(()=>{btn.textContent="📋 Listeyi WhatsApp için kopyala";},2500);
+});
+
+// ---------- Instagram hikâye görseli ----------
+let logoImg=null;
+function loadLogo(){
+  if(logoImg) return Promise.resolve(logoImg);
+  return new Promise(res=>{const i=new Image();i.onload=()=>{logoImg=i;res(i);};i.onerror=()=>res(null);i.src="logo.jpg";});
+}
+async function makeStory(p,btn){
+  const old=btn.textContent;btn.textContent="Hazırlanıyor…";btn.disabled=true;
+  try{
+    try{await Promise.all([document.fonts.load('italic 400 90px "Playfair Display"'),document.fonts.load('600 120px "Playfair Display"'),document.fonts.load('500 44px Inter')]);}catch(e){}
+    const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+    // zemin
+    x.fillStyle="#000";x.fillRect(0,0,W,H);
+    let g=x.createRadialGradient(W/2,520,40,W/2,520,900);g.addColorStop(0,"#2c2c2c");g.addColorStop(1,"rgba(0,0,0,0)");
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    // süs konfetiler
+    const rnd=mulberry(p.name.length*97+p.day*31+p.month);
+    for(let i=0;i<70;i++){
+      const px=rnd()*W,py=rnd()*H;if(px>300&&px<780&&py>160&&py<800){rnd();rnd();rnd();rnd();continue;}
+      x.save();x.translate(px,py);x.rotate(rnd()*Math.PI);
+      x.globalAlpha=.25+rnd()*.45;x.fillStyle=rnd()<.6?"#d9b36c":"#ffffff";
+      x.fillRect(-6,-14,12,28*(.4+rnd()*.6));x.restore();
+    }
+    x.globalAlpha=1;
+    // logo
+    const logo=await loadLogo();
+    if(logo){const lw=400,lh=lw*logo.height/logo.width;
+      x.save();x.globalCompositeOperation="lighten";x.drawImage(logo,(W-lw)/2,200,lw,lh);x.restore();}
+    x.textAlign="center";x.textBaseline="alphabetic";
+    // başlık
+    x.fillStyle="#f2f2f2";x.font='italic 400 96px "Playfair Display", Georgia, serif';
+    x.fillText("İyi ki doğdun",W/2,1040);
+    // isim (sığdır)
+    let fs=130;x.font='600 '+fs+'px "Playfair Display", Georgia, serif';
+    while(x.measureText(p.name).width>940&&fs>56){fs-=4;x.font='600 '+fs+'px "Playfair Display", Georgia, serif';}
+    x.fillStyle="#d9b36c";x.fillText(p.name,W/2,1040+40+fs);
+    const nameBottom=1040+40+fs;
+    // ayraç
+    x.strokeStyle="rgba(217,179,108,.6)";x.lineWidth=2;x.beginPath();x.moveTo(W/2-120,nameBottom+70);x.lineTo(W/2+120,nameBottom+70);x.stroke();
+    // tarih
+    x.fillStyle="#bdbdbd";x.font='500 46px Inter, system-ui, sans-serif';
+    x.fillText(p.day+" "+MONTHS[p.month-1],W/2,nameBottom+150);
+    // alt mesaj
+    x.fillStyle="#f2f2f2";x.font='italic 400 60px "Playfair Display", Georgia, serif';
+    x.fillText("Nice perdelere! 🎭",W/2,nameBottom+270);
+    // imza
+    x.fillStyle="#6a6a6a";x.font='600 34px Inter, system-ui, sans-serif';
+    if("letterSpacing" in x) x.letterSpacing="10px";
+    x.fillText("ETİTSAHNE",W/2,H-150);
+    if("letterSpacing" in x) x.letterSpacing="0px";
+
+    const blob=await new Promise(r=>c.toBlob(r,"image/png"));
+    const fname="etitsahne-dogum-gunu-"+slug(p.name)+".png";
+    const file=new File([blob],fname,{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:"İyi ki doğdun "+p.name});}
+      catch(e){ if(e.name!=="AbortError") download(blob,fname); }
+    } else download(blob,fname);
+  }catch(e){ setMsg("Görsel oluşturulamadı.","err"); }
+  btn.textContent=old;btn.disabled=false;
+}
+function download(blob,name){
+  const u=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+function slug(s){return s.toLocaleLowerCase("tr").replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"uye";}
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// ---------- Konfeti ----------
+let confettiFired=false;
+function confetti(){
+  try{ if(matchMedia("(prefers-reduced-motion: reduce)").matches) return; }catch(e){}
+  const cv=document.createElement("canvas");cv.id="confetti";document.body.appendChild(cv);
+  const x=cv.getContext("2d"),dpr=window.devicePixelRatio||1;
+  const size=()=>{cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;x.setTransform(dpr,0,0,dpr,0,0);};size();
+  const colors=["#d9b36c","#ffffff","#f2d79b","#25d366","#ff7a7a","#8ab4ff"];
+  const P=[];
+  for(let i=0;i<180;i++){
+    const fromLeft=i%2===0;
+    P.push({x:fromLeft?-10:innerWidth+10,y:innerHeight*(.55+Math.random()*.3),
+      vx:(fromLeft?1:-1)*(4+Math.random()*7),vy:-(9+Math.random()*9),
+      w:6+Math.random()*6,h:10+Math.random()*8,r:Math.random()*6,vr:(Math.random()-.5)*.3,
+      c:colors[i%colors.length]});
+  }
+  const t0=performance.now();
+  (function tick(t){
+    const el=t-t0;x.clearRect(0,0,innerWidth,innerHeight);
+    P.forEach(p=>{p.vy+=.28;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;
+      x.save();x.translate(p.x,p.y);x.rotate(p.r);x.globalAlpha=Math.max(0,1-el/4500);
+      x.fillStyle=p.c;x.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*2)));x.restore();});
+    if(el<4500) requestAnimationFrame(tick); else cv.remove();
+  })(t0);
 }
 
 function renderForm(){
