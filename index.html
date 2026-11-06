@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETİT Üyeleri Doğum Günü İşaretleme Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f5f2; --card:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e6e4df;
+    --accent:#d9480f; --accent-soft:#fff1ea; --today:#1d1d1f; --ok:#2b8a3e;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141414; --card:#1e1e1f; --ink:#f2f2f2; --muted:#9a9aa0; --line:#2e2e30;
+      --accent:#ff7a3d; --accent-soft:#3a2418; --today:#f2f2f2; --ok:#5fc46f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 18px 60px}
+  header h1{font-size:24px;margin:0 0 4px;letter-spacing:-.01em}
+  header p{margin:0;color:var(--muted);font-size:14px}
+  .today-banner{margin-top:18px;padding:12px 16px;border-radius:12px;background:var(--accent-soft);
+    color:var(--ink);font-size:15px;display:none}
+  .today-banner b{color:var(--accent)}
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:20px}
+  @media (max-width:820px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .cal-head h2{font-size:18px;margin:0}
+  .nav button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;
+    width:34px;height:34px;font-size:16px;cursor:pointer}
+  .nav button:hover{border-color:var(--accent)}
+  .nav .t{width:auto;padding:0 10px;font-size:13px}
+  .dow,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .dow div{font-size:12px;color:var(--muted);text-align:center;padding:4px 0;font-weight:600}
+  .day{min-height:74px;border:1px solid var(--line);border-radius:10px;padding:6px;cursor:pointer;
+    background:var(--card);text-align:left;color:var(--ink);font:inherit;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+  .day:hover{border-color:var(--accent)}
+  .day.empty{visibility:hidden}
+  .day .n{font-size:13px;font-weight:600}
+  .day.is-today .n{background:var(--today);color:var(--card);border-radius:6px;padding:0 6px;align-self:flex-start}
+  .day.has{background:var(--accent-soft);border-color:transparent}
+  .day.sel{outline:2px solid var(--accent);outline-offset:-1px}
+  .chip{font-size:11px;line-height:1.3;color:var(--accent);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .more{font-size:11px;color:var(--muted)}
+  @media (max-width:520px){ .day{min-height:52px} .chip{display:none} .day.has::after{content:"🎂";font-size:13px} }
+  h3{font-size:15px;margin:0 0 10px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);
+    color:var(--ink);font:inherit;font-size:14px}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:8px}
+  .row > *{flex:1}
+  .btn{margin-top:14px;width:100%;padding:11px;border:none;border-radius:9px;background:var(--accent);color:#fff;
+    font:inherit;font-weight:600;font-size:14px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);margin-top:8px}
+  .msg{font-size:13px;margin-top:10px;min-height:18px}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--accent)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  ul.list{list-style:none;margin:0;padding:0}
+  ul.list li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;gap:8px}
+  ul.list li:last-child{border-bottom:none}
+  .when{color:var(--muted);font-size:12px;white-space:nowrap}
+  .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px}
+  .del:hover{color:var(--accent)}
+  .side{display:flex;flex-direction:column;gap:18px}
+  .status{font-size:13px;color:var(--muted)}
+  .daylist{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎂 ETİT Üyeleri Doğum Günü İşaretleme Sistemi</h1>
+    <p>Takvimden doğum gününe tıkla, adını yaz, kaydet. Herkes aynı takvimi görür.</p>
+  </header>
+
+  <div class="today-banner" id="todayBanner"></div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="cal-head">
+        <h2 id="monthTitle"></h2>
+        <div class="nav">
+          <button id="prev" aria-label="Önceki ay">‹</button>
+          <button id="todayBtn" class="t">Bugün</button>
+          <button id="next" aria-label="Sonraki ay">›</button>
+        </div>
+      </div>
+      <div class="dow"><div>Pzt</div><div>Sal</div><div>Çar</div><div>Per</div><div>Cum</div><div>Cmt</div><div>Paz</div></div>
+      <div class="days" id="days"></div>
+      <div class="daylist" id="dayList" hidden></div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h3 id="formTitle">Doğum günümü işaretle</h3>
+        <form id="form">
+          <label for="name">Ad Soyad</label>
+          <input id="name" maxlength="60" placeholder="Örn. Ayşe Yılmaz" autocomplete="name" required>
+          <div class="row">
+            <div>
+              <label for="day">Gün</label>
+              <select id="day"></select>
+            </div>
+            <div>
+              <label for="month">Ay</label>
+              <select id="month"></select>
+            </div>
+          </div>
+          <button class="btn" id="save" type="submit" disabled>Kaydet</button>
+          <button class="btn ghost" id="remove" type="button" hidden>Kaydımı sil</button>
+          <div class="msg" id="msg"></div>
+          <div class="hint">Takvimde bir güne tıklayınca tarih otomatik seçilir. Kaydını aynı tarayıcıdan güncelleyip silebilirsin; tekrar kaydedersen güncellenir.</div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Yaklaşan doğum günleri</h3>
+        <div class="status" id="status">Yükleniyor…</div>
+        <ul class="list" id="upcoming"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ↓↓↓ Apps Script "Web uygulaması" URL'sini buraya yapıştır (README'ye bak) ↓↓↓
+const API_URL = "https://script.google.com/macros/s/AKfycbzf9es9O7bVmIBMVjAlIeB6n6BVUCZB-rO4MXktztWpY3yQQC_CE9sXBbLjFjfntyG5/exec";
+// ↑↑↑
+
+const MONTHS=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const $=id=>document.getElementById(id);
+const now=new Date();
+let viewY=now.getFullYear(), viewM=now.getMonth();
+let entries=[], myId=null, selected=null, ready=false;
+
+// Bu tarayıcıya özel gizli anahtar: kişi kendi kaydını yalnızca buradan düzenleyip silebilir
+let memToken=null;
+function getToken(){
+  try{
+    let t=localStorage.getItem("etit_bday_token");
+    if(!t){t=newToken();localStorage.setItem("etit_bday_token",t);}
+    return t;
+  }catch(e){ return memToken||(memToken=newToken()); }
+}
+function newToken(){
+  const a=new Uint8Array(24);crypto.getRandomValues(a);
+  return Array.from(a,b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+async function api(body){
+  const opt=body?{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}:{};
+  const r=await fetch(API_URL,opt);
+  const j=await r.json();
+  if(!j.ok) throw new Error(j.error||"Hata");
+  return j;
+}
+
+// selects
+for(let m=0;m<12;m++){const o=document.createElement("option");o.value=m+1;o.textContent=MONTHS[m];$("month").appendChild(o);}
+function fillDays(){
+  const m=+$("month").value, cur=+$("day").value||1;
+  const max=new Date(2024,m,0).getDate();
+  $("day").innerHTML="";
+  for(let d=1;d<=max;d++){const o=document.createElement("option");o.value=d;o.textContent=d;$("day").appendChild(o);}
+  $("day").value=Math.min(cur,max);
+}
+$("month").value=now.getMonth()+1; fillDays(); $("day").value=now.getDate();
+$("month").addEventListener("change",fillDays);
+
+function byDate(m,d){return entries.filter(e=>e.month===m&&e.day===d).sort((a,b)=>a.name.localeCompare(b.name,"tr"));}
+
+function render(){
+  $("monthTitle").textContent=MONTHS[viewM]+" "+viewY;
+  const first=new Date(viewY,viewM,1);
+  const offset=(first.getDay()+6)%7;
+  const total=new Date(viewY,viewM+1,0).getDate();
+  const box=$("days"); box.innerHTML="";
+  for(let i=0;i<offset;i++){const e=document.createElement("div");e.className="day empty";box.appendChild(e);}
+  for(let d=1;d<=total;d++){
+    const people=byDate(viewM+1,d);
+    if(viewM===1&&d===28&&total===28) people.push(...byDate(2,29));
+    const b=document.createElement("button");b.type="button";b.className="day";
+    if(viewY===now.getFullYear()&&viewM===now.getMonth()&&d===now.getDate())b.classList.add("is-today");
+    if(people.length)b.classList.add("has");
+    if(selected&&selected.m===viewM+1&&selected.d===d)b.classList.add("sel");
+    const n=document.createElement("span");n.className="n";n.textContent=d;b.appendChild(n);
+    people.slice(0,2).forEach(p=>{const c=document.createElement("span");c.className="chip";c.textContent="🎂 "+p.name;b.appendChild(c);});
+    if(people.length>2){const c=document.createElement("span");c.className="more";c.textContent="+"+(people.length-2)+" kişi";b.appendChild(c);}
+    b.title=people.map(p=>p.name).join(", ");
+    b.addEventListener("click",()=>pick(viewM+1,d));
+    box.appendChild(b);
+  }
+  renderDayList(); renderUpcoming(); renderToday(); renderForm();
+}
+
+function pick(m,d){
+  selected={m,d};
+  $("month").value=m; fillDays(); $("day").value=d;
+  if(ready) $("name").focus();
+  render();
+}
+
+function personRow(p,whenText){
+  const li=document.createElement("li");
+  const left=document.createElement("span");left.textContent=p.name+(p.id===myId?" (sen)":"");
+  const w=document.createElement("span");w.className="when";w.textContent=whenText;
+  li.append(left,w);return li;
+}
+
+function renderDayList(){
+  const el=$("dayList");
+  if(!selected){el.hidden=true;return;}
+  const people=byDate(selected.m,selected.d);
+  el.hidden=false;el.innerHTML="";
+  const h=document.createElement("h3");h.textContent=selected.d+" "+MONTHS[selected.m-1]+" doğumlular";el.appendChild(h);
+  if(!people.length){const s=document.createElement("div");s.className="status";s.textContent="Bu güne kayıtlı kimse yok.";el.appendChild(s);return;}
+  const ul=document.createElement("ul");ul.className="list";people.forEach(p=>ul.appendChild(personRow(p,"")));el.appendChild(ul);
+}
+
+function daysUntil(m,d){
+  const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const mk=yy=>(m===2&&d===29&&new Date(yy,1,29).getMonth()!==1)?new Date(yy,1,28):new Date(yy,m-1,d);
+  let next=mk(t.getFullYear()); if(next<t) next=mk(t.getFullYear()+1);
+  return Math.round((next-t)/864e5);
+}
+
+function renderUpcoming(){
+  const ul=$("upcoming");ul.innerHTML="";
+  if(!ready)return;
+  $("status").textContent=entries.length?entries.length+" kişi kayıtlı":"Henüz kayıt yok — ilk sen ekle!";
+  entries.map(e=>({...e,left:daysUntil(e.month,e.day)})).sort((a,b)=>a.left-b.left||a.name.localeCompare(b.name,"tr"))
+    .slice(0,8).forEach(p=>{
+      const txt=p.day+" "+MONTHS[p.month-1]+" · "+(p.left===0?"bugün 🎉":p.left===1?"yarın":p.left+" gün");
+      ul.appendChild(personRow(p,txt));
+    });
+}
+
+function renderToday(){
+  const list=entries.filter(e=>daysUntil(e.month,e.day)===0);
+  const b=$("todayBanner");
+  if(!list.length){b.style.display="none";return;}
+  b.style.display="block";b.textContent="";
+  b.append("🎉 Bugün doğum günü: ");
+  const s=document.createElement("b");s.textContent=list.map(e=>e.name).join(", ");b.appendChild(s);
+  b.append(" — kutlamayı unutmayın!");
+}
+
+function renderForm(){
+  const mine=entries.find(e=>e.id===myId);
+  $("formTitle").textContent=mine?"Kaydını güncelle":"Doğum günümü işaretle";
+  $("remove").hidden=!mine;
+}
+
+function setMsg(t,cls){$("msg").textContent=t;$("msg").className="msg "+(cls||"");}
+
+function apply(j){
+  if(Array.isArray(j.entries)) entries=j.entries.map(e=>({id:String(e.id),name:String(e.name).slice(0,60),day:+e.day,month:+e.month}));
+  if("myId" in j) myId=j.myId;
+}
+
+$("form").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  if(!ready)return;
+  const name=$("name").value.trim().replace(/\s+/g," ");
+  if(!name){setMsg("Lütfen adını yaz.","err");return;}
+  const day=+$("day").value, month=+$("month").value;
+  $("save").disabled=true;setMsg("Kaydediliyor…");
+  try{
+    apply(await api({action:"save",token:getToken(),name,day,month}));
+    setMsg("Kaydedildi: "+day+" "+MONTHS[month-1]+" 🎂","ok");
+    viewM=month-1; selected={m:month,d:day}; render();
+  }catch(e){setMsg("Kaydedilemedi: "+e.message,"err");}
+  $("save").disabled=false;
+});
+
+$("remove").addEventListener("click",async()=>{
+  const btn=$("remove");
+  if(btn.dataset.confirm!=="1"){
+    btn.dataset.confirm="1";btn.textContent="Emin misin? Silmek için tekrar tıkla";
+    setTimeout(()=>{btn.dataset.confirm="";btn.textContent="Kaydımı sil";},5000);
+    return;
+  }
+  btn.dataset.confirm="";btn.textContent="Kaydımı sil";
+  try{apply(await api({action:"delete",token:getToken()}));setMsg("Silindi.","ok");render();}
+  catch(e){setMsg("Silinemedi: "+e.message,"err");}
+});
+
+$("prev").onclick=()=>{viewM--;if(viewM<0){viewM=11;viewY--;}render();};
+$("next").onclick=()=>{viewM++;if(viewM>11){viewM=0;viewY++;}render();};
+$("todayBtn").onclick=()=>{viewY=now.getFullYear();viewM=now.getMonth();pick(now.getMonth()+1,now.getDate());};
+
+render();
+
+async function refresh(){
+  try{ apply(await api()); render(); }catch(e){}
+}
+
+(async()=>{
+  if(!API_URL){$("status").textContent="Kurulum tamamlanmamış: index.html içindeki API_URL boş.";return;}
+  try{
+    const [list,me]=await Promise.all([api(),api({action:"whoami",token:getToken()})]);
+    apply(list); apply(me);
+    ready=true; $("save").disabled=false;
+    const mine=entries.find(e=>e.id===myId);
+    if(mine){$("name").value=mine.name;}
+    render();
+    setInterval(refresh,60000);
+  }catch(e){$("status").textContent="Kayıtlar yüklenemedi. Biraz sonra tekrar dene.";}
+})();
+</script>
+</body>
+</html>
