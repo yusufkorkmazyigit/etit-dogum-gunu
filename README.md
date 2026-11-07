@@ -31,6 +31,14 @@ const API_URL = "https://script.google.com/macros/s/.../exec";
 Repo **Settings → Pages → Source: Deploy from a branch → `main` / root** → Save.
 Birkaç dakika sonra sayfa `https://<kullanici-adi>.github.io/<repo-adi>/` adresinde yayında olur.
 
+### 4. Her sabah e-posta hatırlatması (isteğe bağlı)
+1. Apps Script editöründe `Code.gs`'i bu repodaki güncel haliyle değiştir, kaydet.
+2. Üstteki fonksiyon listesinden **`hatirlatmayiKur`** seç → ▶ **Çalıştır** → izinleri onayla.
+3. Denemek için **`hatirlatmayiDene`**'yi çalıştır; birkaç saniye içinde e-posta gelir.
+
+O gün doğum günü olan varsa her sabah 08:00 civarı Google hesabının e-postasına mail gelir. Kapatmak için `hatirlatmayiKapat`'ı çalıştır.
+Not: Hatırlatma için yeniden dağıtım gerekmez.
+
 ## Yönetim
 - Tüm kayıtlar e-tablodaki **Kayitlar** sayfasında görünür. Yanlış/şaka bir kaydı silmek için satırı silmen yeterli.
 - `token` sütunu kimseye gösterilmez; kişinin kendi kaydını düzenleyebilmesini sağlar. Düzenleme yapma.

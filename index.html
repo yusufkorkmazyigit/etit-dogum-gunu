@@ -136,7 +136,7 @@
               <select id="month"></select>
             </div>
           </div>
-          <button class="btn" id="save" type="submit" disabled>Kaydet</button>
+          <button class="btn" id="save" type="submit" disabled>Bağlanıyor…</button>
           <button class="btn ghost" id="remove" type="button" hidden>Kaydımı sil</button>
           <div class="msg" id="msg"></div>
           <div class="hint">Takvimde bir güne tıklayınca tarih otomatik seçilir. Kaydını aynı tarayıcıdan güncelleyip silebilirsin; tekrar kaydedersen güncellenir.</div>
@@ -144,7 +144,7 @@
       </div>
 
       <div class="card">
-        <h3 id="monthListTitle">Bu ay doğanlar</h3>
+        <h3 id="monthListTitle">Bu Ay Doğanlar</h3>
         <ul class="list" id="monthList"></ul>
         <button class="btn ghost" id="copyMonth" type="button" hidden>📋 Listeyi WhatsApp için kopyala</button>
       </div>
@@ -172,7 +172,7 @@ const MONTHS=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağust
 const $=id=>document.getElementById(id);
 const now=new Date();
 let viewY=now.getFullYear(), viewM=now.getMonth();
-let entries=[], myId=null, selected=null, ready=false;
+let entries=[], myId=null, selected=null, ready=false, dupOk=null;
 
 // Bu tarayıcıya özel gizli anahtar: kişi kendi kaydını yalnızca buradan düzenleyip silebilir
 let memToken=null;
@@ -207,6 +207,7 @@ function fillDays(){
 }
 $("month").value=now.getMonth()+1; fillDays(); $("day").value=now.getDate();
 $("month").addEventListener("change",fillDays);
+$("name").addEventListener("input",()=>{if(dupOk){dupOk=null;$("save").textContent="Kaydet";setMsg("");}});
 
 function byDate(m,d){return entries.filter(e=>e.month===m&&e.day===d).sort((a,b)=>a.name.localeCompare(b.name,"tr"));}
 
@@ -237,8 +238,11 @@ function render(){
 function pick(m,d){
   selected={m,d};
   $("month").value=m; fillDays(); $("day").value=d;
-  if(ready) $("name").focus();
   render();
+  if(window.innerWidth<=820){
+    $("form").scrollIntoView({behavior:"smooth",block:"center"});
+    if(ready&&!$("name").value) setTimeout(()=>$("name").focus({preventScroll:true}),450);
+  } else if(ready) $("name").focus();
 }
 
 function personRow(p,whenText){
@@ -310,7 +314,7 @@ function monthLines(m){
 function byMonth(m){return entries.filter(e=>e.month===m).sort((a,b)=>a.day-b.day||a.name.localeCompare(b.name,"tr"));}
 function renderMonthList(){
   const m=viewM+1, ul=$("monthList"), people=byMonth(m);
-  $("monthListTitle").textContent=MONTHS[m-1]+" doğumluları"+(people.length?" ("+people.length+")":"");
+  $("monthListTitle").textContent=MONTHS[m-1]+" Ayında Doğanlar"+(people.length?" ("+people.length+")":"");
   ul.innerHTML="";
   if(!ready){return;}
   if(!people.length){const li=document.createElement("li");li.className="status";li.textContent="Bu ay kayıtlı doğum günü yok.";ul.appendChild(li);}
@@ -448,6 +452,15 @@ $("form").addEventListener("submit",async ev=>{
   const name=$("name").value.trim().replace(/\s+/g," ");
   if(!name){setMsg("Lütfen adını yaz.","err");return;}
   const day=+$("day").value, month=+$("month").value;
+  const norm=t=>t.toLocaleLowerCase("tr").replace(/\s+/g," ").trim();
+  const dup=entries.find(e=>e.id!==myId&&norm(e.name)===norm(name));
+  if(dup&&dupOk!==norm(name)){
+    dupOk=norm(name);
+    setMsg("“"+dup.name+"” zaten "+dup.day+" "+MONTHS[dup.month-1]+" tarihiyle kayıtlı. Başka bir telefondan/tarayıcıdan eklemiş olabilirsin. Farklı bir kişiysen “Yine de kaydet”e bas.","err");
+    $("save").textContent="Yine de kaydet";
+    return;
+  }
+  dupOk=null;$("save").textContent="Kaydet";
   $("save").disabled=true;setMsg("Kaydediliyor…");
   try{
     apply(await api({action:"save",token:getToken(),name,day,month}));
@@ -484,7 +497,7 @@ async function refresh(){
   try{
     const [list,me]=await Promise.all([api(),api({action:"whoami",token:getToken()})]);
     apply(list); apply(me);
-    ready=true; $("save").disabled=false;
+    ready=true; $("save").disabled=false; $("save").textContent="Kaydet";
     const mine=entries.find(e=>e.id===myId);
     if(mine){$("name").value=mine.name;}
     render();
