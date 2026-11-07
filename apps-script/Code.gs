@@ -99,3 +99,54 @@ function doPost(e) {
     lock.releaseLock();
   }
 }
+
+/* ------------------------------------------------------------------
+ * Her sabah e-posta hatırlatması
+ * Kurulum: Apps Script editöründe üstteki fonksiyon listesinden
+ * "hatirlatmayiKur" seçip ▶ Çalıştır'a bas, izinleri onayla. Bir kere yeterli.
+ * Kapatmak için "hatirlatmayiKapat"ı çalıştır.
+ * ------------------------------------------------------------------ */
+const PAGE_URL = 'https://yusufkorkmazyigit.github.io/etit-dogum-gunu/';
+const TZ = 'Europe/Istanbul';
+const REMINDER_HOUR = 8;
+
+function hatirlatmayiKur() {
+  hatirlatmayiKapat();
+  ScriptApp.newTrigger('gunlukHatirlatma').timeBased().everyDays(1).atHour(REMINDER_HOUR).inTimezone(TZ).create();
+  Logger.log('Hatırlatma kuruldu: her gün ' + REMINDER_HOUR + ':00 civarı, alıcı: ' + Session.getEffectiveUser().getEmail());
+}
+
+function hatirlatmayiKapat() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'gunlukHatirlatma')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+}
+
+function bugunDoganlar_() {
+  const now = new Date();
+  const d = Number(Utilities.formatDate(now, TZ, 'd'));
+  const m = Number(Utilities.formatDate(now, TZ, 'M'));
+  const y = Number(Utilities.formatDate(now, TZ, 'yyyy'));
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  return publicList_().filter(e =>
+    (e.day === d && e.month === m) || (!leap && m === 2 && d === 28 && e.day === 29 && e.month === 2));
+}
+
+function gunlukHatirlatma() {
+  const list = bugunDoganlar_();
+  if (!list.length) return;
+  const names = list.map(e => e.name);
+  const subject = '🎂 Bugün doğum günü: ' + names.join(', ');
+  const body = 'Bugün ETİTSAHNE\'de doğum günü olan' + (names.length > 1 ? 'lar' : '') + ':\n\n' +
+    names.map(n => '• ' + n).join('\n') +
+    '\n\nWhatsApp mesajı ve Instagram hikâye görseli için sayfayı aç:\n' + PAGE_URL;
+  MailApp.sendEmail(Session.getEffectiveUser().getEmail(), subject, body);
+}
+
+/* Denemek için: hatırlatma e-postası şimdi gelsin (bugün kimse yoksa örnek gönderir) */
+function hatirlatmayiDene() {
+  const list = bugunDoganlar_();
+  if (list.length) { gunlukHatirlatma(); return; }
+  MailApp.sendEmail(Session.getEffectiveUser().getEmail(), '🎂 Deneme: doğum günü hatırlatması çalışıyor',
+    'Bugün kayıtlı doğum günü yok. Olduğu günlerde sabah ' + REMINDER_HOUR + ':00 civarı böyle bir e-posta gelecek.\n\n' + PAGE_URL);
+}
